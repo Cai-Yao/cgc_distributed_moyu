@@ -90,41 +90,41 @@ void initFloat(float *&dst, int num)
 	memset(dst, 0, num * sizeof(float));
 }
 
+inline int getIndex(int x, int y, int len)
+{
+    return x * len + y;
+}
+
 void XW(int in_dim, int out_dim, float *in_X, float *out_X, float *W)
 {
-	float(*tmp_in_X)[in_dim] = (float(*)[in_dim])in_X;
-	float(*tmp_out_X)[out_dim] = (float(*)[out_dim])out_X;
-	float(*tmp_W)[out_dim] = (float(*)[out_dim])W;
-
+    #pragma omp parallel for
 	for (int i = 0; i < v_num; i++)
-	{
-		for (int j = 0; j < out_dim; j++)
-		{
-			for (int k = 0; k < in_dim; k++)
-			{
-				tmp_out_X[i][j] += tmp_in_X[i][k] * tmp_W[k][j];
-			}
-		}
-	}
+    {
+        for (int j = 0; j < out_dim; j++)
+        {
+            for (int k = 0; k < in_dim; k++)
+            {
+                #pragma omp atomic
+                out_X[getIndex(i, j, out_dim)] += in_X[getIndex(i, k, in_dim)] * W[getIndex(k, j, out_dim)];
+            }
+        }
+    }
 }
 
 void AX(int dim, float *in_X, float *out_X)
 {
-	float(*tmp_in_X)[dim] = (float(*)[dim])in_X;
-	float(*tmp_out_X)[dim] = (float(*)[dim])out_X;
-
-	for (int i = 0; i < v_num; i++)
-	{
-		vector<int> &nlist = edge_index[i];
-		for (int j = 0; j < nlist.size(); j++)
-		{
-			int nbr = nlist[j];
-			for (int k = 0; k < dim; k++)
-			{
-				tmp_out_X[i][k] += tmp_in_X[nbr][k] * edge_val[i][j];
-			}
-		}
-	}
+    for (int i = 0; i < v_num; i++)
+    {
+        vector<int> &nlist = edge_index[i];
+        for (int j = 0; j < nlist.size(); j++)
+        {
+            int nbr = nlist[j];
+            for (int k = 0; k < dim; k++)
+            {
+                out_X[getIndex(i, k, dim)] += in_X[getIndex(nbr, k, dim)] * edge_val[i][j];
+            }
+        }
+    }
 }
 
 void ReLU(int dim, float *X)
@@ -136,34 +136,31 @@ void ReLU(int dim, float *X)
 
 void LogSoftmax(int dim, float *X)
 {
-	float(*tmp_X)[dim] = (float(*)[dim])X;
+    for (int i = 0; i < v_num; i++)
+    {
+        float max = X[getIndex(i, 0, dim)];
+        for (int j = 1; j < dim; j++)
+        {
+            if (X[getIndex(i, j, dim)] > max)
+                max = X[getIndex(i, j, dim)];
+        }
 
-	for (int i = 0; i < v_num; i++)
-	{
-		float max = tmp_X[i][0];
-		for (int j = 1; j < dim; j++)
-		{
-			if (tmp_X[i][j] > max)
-				max = tmp_X[i][j];
-		}
+        float sum = 0;
+        for (int j = 0; j < dim; j++)
+        {
+            sum += exp(X[getIndex(i, j, dim)] - max);
+        }
+        sum = log(sum);
 
-		float sum = 0;
-		for (int j = 0; j < dim; j++)
-		{
-			sum += exp(tmp_X[i][j] - max);
-		}
-		sum = log(sum);
-
-		for (int j = 0; j < dim; j++)
-		{
-			tmp_X[i][j] = tmp_X[i][j] - max - sum;
-		}
-	}
+        for (int j = 0; j < dim; j++)
+        {
+            X[getIndex(i, j, dim)] = X[getIndex(i, j, dim)] - max - sum;
+        }
+    }
 }
 
 float MaxRowSum(float *X, int dim)
 {
-	float(*tmp_X)[dim] = (float(*)[dim])X;
 	float max = -__FLT_MAX__;
 
 	for (int i = 0; i < v_num; i++)
@@ -171,7 +168,7 @@ float MaxRowSum(float *X, int dim)
 		float sum = 0;
 		for (int j = 0; j < dim; j++)
 		{
-			sum += tmp_X[i][j];
+			sum += X[getIndex(i, j, dim)];
 		}
 		if (sum > max)
 			max = sum;
