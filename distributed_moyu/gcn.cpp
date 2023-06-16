@@ -199,6 +199,9 @@ void somePreprocessing()
 int main(int argc, char **argv)
 {
 	// Do NOT count the time of reading files, malloc, and memset
+	// for (int i = 1; i <= 7; i++) {
+	// 	cout << argv[i] << endl;
+	// }
 	F0 = atoi(argv[1]);
 	F1 = atoi(argv[2]);
 	F2 = atoi(argv[3]);
