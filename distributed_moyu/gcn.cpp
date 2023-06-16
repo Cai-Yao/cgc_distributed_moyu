@@ -66,6 +66,7 @@ void raw_graph_to_AdjacencyList()
 
 void edgeNormalization()
 {
+#pragma omp parallel for
 	for (int i = 0; i < v_num; i++)
 	{
 		for (int j = 0; j < edge_index[i].size(); j++)
@@ -96,6 +97,7 @@ void XW(int in_dim, int out_dim, float *in_X, float *out_X, float *W)
 	float(*tmp_out_X)[out_dim] = (float(*)[out_dim])out_X;
 	float(*tmp_W)[out_dim] = (float(*)[out_dim])W;
 
+#pragma omp parallel for
 	for (int i = 0; i < v_num; i++)
 	{
 		for (int j = 0; j < out_dim; j++)
@@ -113,6 +115,7 @@ void AX(int dim, float *in_X, float *out_X)
 	float(*tmp_in_X)[dim] = (float(*)[dim])in_X;
 	float(*tmp_out_X)[dim] = (float(*)[dim])out_X;
 
+#pragma omp parallel for
 	for (int i = 0; i < v_num; i++)
 	{
 		vector<int> &nlist = edge_index[i];
@@ -129,6 +132,7 @@ void AX(int dim, float *in_X, float *out_X)
 
 void ReLU(int dim, float *X)
 {
+#pragma omp parallel for
 	for (int i = 0; i < v_num * dim; i++)
 		if (X[i] < 0)
 			X[i] = 0;
@@ -138,6 +142,7 @@ void LogSoftmax(int dim, float *X)
 {
 	float(*tmp_X)[dim] = (float(*)[dim])X;
 
+#pragma omp parallel for
 	for (int i = 0; i < v_num; i++)
 	{
 		float max = tmp_X[i][0];
@@ -166,6 +171,7 @@ float MaxRowSum(float *X, int dim)
 	float(*tmp_X)[dim] = (float(*)[dim])X;
 	float max = -__FLT_MAX__;
 
+#pragma omp parallel for reduction(max: max)
 	for (int i = 0; i < v_num; i++)
 	{
 		float sum = 0;
