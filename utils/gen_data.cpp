@@ -1,5 +1,3 @@
-#include "utils.h"
-#include <cstdlib>
 #include <ctime>
 #include <fstream>
 #include <iostream>
@@ -16,7 +14,7 @@ string path_prefix;
 string embedding_path;
 string weight1_path;
 string weight2_path;
-namespace utils {
+
 void init() {
   path_prefix = "data";
   embedding_path = path_prefix + "/embedding/" + to_string(V) + ".bin";
@@ -75,29 +73,6 @@ void gen_weight() {
   ofile2.close();
 }
 
-void gen_graph(int V_, int E_) {
-  string cmd = "PaRMAT -nVertices " + to_string(V_) + " -nEdges " +
-               to_string(E_) + " -output data/graph/graph_" + to_string(V_) +
-               "_" + to_string(E_)++ "_.txt > dev/null";
-  int res = system(cmd.c_str());
-  return;
-}
-
-void prepare_data(int V_, int E_, int F0_, int F1_, int F2_) {
-  V = V_;
-  E = E_;
-  F0 = F0_;
-  F1 = F1_;
-  F2 = F2_;
-
-  init();
-  gen_embedding();
-  gen_weight();
-  gen_graph(V_, E_);
-}
-
-} // namespace utils
-
 // arg: V, E, F0, F1, F2
 int main(int argc, char **argv) {
   // init
@@ -111,9 +86,9 @@ int main(int argc, char **argv) {
   F1 = atoi(argv[4]);
   F2 = atoi(argv[5]);
 
-  utils::init();
-  utils::gen_embedding();
-  utils::gen_weight();
+  init();
+  gen_embedding();
+  gen_weight();
 
   return 0;
 }
