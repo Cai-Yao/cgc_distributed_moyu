@@ -1,0 +1,6 @@
+[submodule "3rdparty/benchmark"]
+	path = 3rdparty/benchmark
+	url = git@github.com:google/benchmark.git
+[submodule "3rdparty/PaRMAT"]
+	path = 3rdparty/PaRMAT
+	url = git@github.com:farkhor/PaRMAT.git

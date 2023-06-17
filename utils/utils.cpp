@@ -1,10 +1,14 @@
+#include "utils/utils.h"
+#include <cstdlib>
 #include <ctime>
 #include <fstream>
 #include <iostream>
 #include <random>
 #include <string>
+#include <unordered_set>
 using namespace std;
 
+namespace utils {
 // 生成符合均值为 0, 标准差为 2 的随机数
 normal_distribution<float> u(0, 2);
 default_random_engine e(23333);
@@ -15,9 +19,12 @@ string embedding_path;
 string weight1_path;
 string weight2_path;
 
+unordered_set<string> gened;
+
 void init() {
   path_prefix = "data";
-  embedding_path = path_prefix + "/embedding/" + to_string(V) + ".bin";
+  embedding_path =
+      path_prefix + "/embedding/" + to_string(V) + "_" + to_string(F0) + ".bin";
   weight1_path = path_prefix + "/weight/W1_" + to_string(F0) + "_" +
                  to_string(F1) + ".bin";
   weight2_path = path_prefix + "/weight/W2_" + to_string(F1) + "_" +
@@ -25,6 +32,10 @@ void init() {
 }
 
 void gen_embedding() {
+  if (gened.count(embedding_path)) {
+    return;
+  }
+
   ofstream ofile;
   ofile.open(embedding_path, ios::binary);
   if (!ofile) {
@@ -40,9 +51,13 @@ void gen_embedding() {
   }
 
   ofile.close();
+  gened.insert(embedding_path);
 }
 
 void gen_weight() {
+  if (gened.count(weight1_path) && gened.count(weight2_path)) {
+    return;
+  }
   ofstream ofile1;
   ofstream ofile2;
   ofile1.open(weight1_path, ios::binary);
@@ -71,24 +86,38 @@ void gen_weight() {
 
   ofile1.close();
   ofile2.close();
+  gened.insert(weight1_path);
+  gened.insert(weight2_path);
 }
 
-// arg: V, E, F0, F1, F2
-int main(int argc, char **argv) {
-  // init
-  if (argc != 6) {
-    cout << "error arg number: " << argc << " is wrong!";
-    return -1;
+void gen_graph(int V_, int E_) {
+  string file_name =
+      "data/graph/graph_" + to_string(V_) + "_" + to_string(E_) + ".txt";
+
+  if (gened.count(file_name)) {
+    return;
   }
-  V = atoi(argv[1]);
-  E = atoi(argv[2]);
-  F0 = atoi(argv[3]);
-  F1 = atoi(argv[4]);
-  F2 = atoi(argv[5]);
+  string cmd = "./PaRMAT -nVertices " + to_string(V_) + " -nEdges " +
+               to_string(E_) + " -output " + file_name + " > /dev/null";
+  int res = system(cmd.c_str());
+  string sed_cmd =
+      "sed -i \"1i" + to_string(V_) + " " + to_string(E_) + "\" " + file_name;
+  res = system(sed_cmd.c_str());
+  gened.insert(file_name);
+  return;
+}
+
+void prepare_data(int V_, int E_, int F0_, int F1_, int F2_) {
+  V = V_;
+  E = E_;
+  F0 = F0_;
+  F1 = F1_;
+  F2 = F2_;
 
   init();
   gen_embedding();
   gen_weight();
-
-  return 0;
+  gen_graph(V_, E_);
 }
+
+} // namespace utils
