@@ -9,13 +9,16 @@
 #include <string.h>
 #include <vector>
 
-void readGraph(char *fname);
+namespace impl {
+namespace origin {
+
+void readGraph(const char *fname);
 
 void raw_graph_to_AdjacencyList();
 
 void edgeNormalization();
 
-void readFloat(char *fname, float *&dst, int num);
+void readFloat(const char *fname, float *&dst, int num);
 
 void initFloat(float *&dst, int num);
 
@@ -33,6 +36,10 @@ void freeFloats();
 void somePreprocessing();
 
 std::pair<float, double> origin_impl(int feature_0, int feature_1,
-                                     int feature_2, char *graph_path,
-                                     char *embedding_path, char *weight_1_path,
-                                     char *weight_2_path);
+                                     int feature_2, const char *graph_path,
+                                     const char *embedding_path,
+                                     const char *weight_1_path,
+                                     const char *weight_2_path);
+
+} // namespace origin
+} // namespace impl

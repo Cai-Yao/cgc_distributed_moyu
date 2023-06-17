@@ -1,8 +1,11 @@
 {
     "files.associations": {
+        "*.m": "matlab",
+        "*.s": "asm",
         "deque": "cpp",
         "string": "cpp",
         "vector": "cpp",
-        "initializer_list": "cpp"
+        "initializer_list": "cpp",
+        "chrono": "cpp"
     }
 }

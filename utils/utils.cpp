@@ -5,8 +5,10 @@
 #include <iostream>
 #include <random>
 #include <string>
+#include <unordered_set>
 using namespace std;
 
+namespace utils {
 // 生成符合均值为 0, 标准差为 2 的随机数
 normal_distribution<float> u(0, 2);
 default_random_engine e(23333);
@@ -16,10 +18,13 @@ string path_prefix;
 string embedding_path;
 string weight1_path;
 string weight2_path;
-namespace utils {
+
+unordered_set<string> gened;
+
 void init() {
   path_prefix = "data";
-  embedding_path = path_prefix + "/embedding/" + to_string(V) + ".bin";
+  embedding_path =
+      path_prefix + "/embedding/" + to_string(V) + "_" + to_string(F0) + ".bin";
   weight1_path = path_prefix + "/weight/W1_" + to_string(F0) + "_" +
                  to_string(F1) + ".bin";
   weight2_path = path_prefix + "/weight/W2_" + to_string(F1) + "_" +
@@ -27,6 +32,10 @@ void init() {
 }
 
 void gen_embedding() {
+  if (gened.count(embedding_path)) {
+    return;
+  }
+
   ofstream ofile;
   ofile.open(embedding_path, ios::binary);
   if (!ofile) {
@@ -42,9 +51,13 @@ void gen_embedding() {
   }
 
   ofile.close();
+  gened.insert(embedding_path);
 }
 
 void gen_weight() {
+  if (gened.count(weight1_path) && gened.count(weight2_path)) {
+    return;
+  }
   ofstream ofile1;
   ofstream ofile2;
   ofile1.open(weight1_path, ios::binary);
@@ -73,13 +86,24 @@ void gen_weight() {
 
   ofile1.close();
   ofile2.close();
+  gened.insert(weight1_path);
+  gened.insert(weight2_path);
 }
 
 void gen_graph(int V_, int E_) {
-  string cmd = "PaRMAT -nVertices " + to_string(V_) + " -nEdges " +
-               to_string(E_) + " -output data/graph/graph_" + to_string(V_) +
-               "_" + to_string(E_) + "_.txt > dev/null";
+  string file_name =
+      "data/graph/graph_" + to_string(V_) + "_" + to_string(E_) + ".txt";
+
+  if (gened.count(file_name)) {
+    return;
+  }
+  string cmd = "./PaRMAT -nVertices " + to_string(V_) + " -nEdges " +
+               to_string(E_) + " -output " + file_name + " > /dev/null";
   int res = system(cmd.c_str());
+  string sed_cmd =
+      "sed -i \"1i" + to_string(V_) + " " + to_string(E_) + "\" " + file_name;
+  res = system(sed_cmd.c_str());
+  gened.insert(file_name);
   return;
 }
 

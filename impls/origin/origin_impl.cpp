@@ -2,6 +2,9 @@
 
 using namespace std;
 
+namespace impl {
+namespace origin {
+
 typedef std::chrono::time_point<std::chrono::steady_clock> TimePoint;
 
 int v_num = 0;
@@ -14,7 +17,10 @@ vector<int> raw_graph;
 
 float *X0, *W1, *W2, *X1, *X1_inter, *X2, *X2_inter;
 
-void readGraph(char *fname) {
+} // namespace origin
+} // namespace impl
+
+void impl::origin::readGraph(const char *fname) {
   ifstream infile(fname);
 
   int source;
@@ -33,7 +39,7 @@ void readGraph(char *fname) {
   }
 }
 
-void raw_graph_to_AdjacencyList() {
+void impl::origin::raw_graph_to_AdjacencyList() {
 
   int src;
   int dst;
@@ -50,7 +56,7 @@ void raw_graph_to_AdjacencyList() {
   }
 }
 
-void edgeNormalization() {
+void impl::origin::edgeNormalization() {
   for (int i = 0; i < v_num; i++) {
     for (int j = 0; j < edge_index[i].size(); j++) {
       float val = 1 / sqrt(degree[i]) / sqrt(degree[edge_index[i][j]]);
@@ -59,19 +65,20 @@ void edgeNormalization() {
   }
 }
 
-void readFloat(char *fname, float *&dst, int num) {
+void impl::origin::readFloat(const char *fname, float *&dst, int num) {
   dst = (float *)malloc(num * sizeof(float));
   FILE *fp = fopen(fname, "rb");
   fread(dst, num * sizeof(float), 1, fp);
   fclose(fp);
 }
 
-void initFloat(float *&dst, int num) {
+void impl::origin::initFloat(float *&dst, int num) {
   dst = (float *)malloc(num * sizeof(float));
   memset(dst, 0, num * sizeof(float));
 }
 
-void XW(int in_dim, int out_dim, float *in_X, float *out_X, float *W) {
+void impl::origin::XW(int in_dim, int out_dim, float *in_X, float *out_X,
+                      float *W) {
   float(*tmp_in_X)[in_dim] = (float(*)[in_dim])in_X;
   float(*tmp_out_X)[out_dim] = (float(*)[out_dim])out_X;
   float(*tmp_W)[out_dim] = (float(*)[out_dim])W;
@@ -85,7 +92,7 @@ void XW(int in_dim, int out_dim, float *in_X, float *out_X, float *W) {
   }
 }
 
-void AX(int dim, float *in_X, float *out_X) {
+void impl::origin::AX(int dim, float *in_X, float *out_X) {
   float(*tmp_in_X)[dim] = (float(*)[dim])in_X;
   float(*tmp_out_X)[dim] = (float(*)[dim])out_X;
 
@@ -100,13 +107,13 @@ void AX(int dim, float *in_X, float *out_X) {
   }
 }
 
-void ReLU(int dim, float *X) {
+void impl::origin::ReLU(int dim, float *X) {
   for (int i = 0; i < v_num * dim; i++)
     if (X[i] < 0)
       X[i] = 0;
 }
 
-void LogSoftmax(int dim, float *X) {
+void impl::origin::LogSoftmax(int dim, float *X) {
   float(*tmp_X)[dim] = (float(*)[dim])X;
 
   for (int i = 0; i < v_num; i++) {
@@ -128,7 +135,7 @@ void LogSoftmax(int dim, float *X) {
   }
 }
 
-float MaxRowSum(float *X, int dim) {
+float impl::origin::MaxRowSum(float *X, int dim) {
   float(*tmp_X)[dim] = (float(*)[dim])X;
   float max = -__FLT_MAX__;
 
@@ -143,7 +150,7 @@ float MaxRowSum(float *X, int dim) {
   return max;
 }
 
-void freeFloats() {
+void impl::origin::freeFloats() {
   free(X0);
   free(W1);
   free(W2);
@@ -151,17 +158,24 @@ void freeFloats() {
   free(X2);
   free(X1_inter);
   free(X2_inter);
+  edge_index.clear();
+  edge_val.clear();
+  degree.clear();
+  raw_graph.clear();
 }
 
-void somePreprocessing() {
+void impl::origin::somePreprocessing() {
   // The graph  will be transformed into adjacency list ,you can use other data
   // structure such as CSR
   raw_graph_to_AdjacencyList();
 }
 
-pair<float, double> origin_impl(int feature_0, int feature_1, int feature_2,
-                                char *graph_path, char *embedding_path,
-                                char *weight_1_path, char *weight_2_path) {
+pair<float, double> impl::origin::origin_impl(int feature_0, int feature_1,
+                                              int feature_2,
+                                              const char *graph_path,
+                                              const char *embedding_path,
+                                              const char *weight_1_path,
+                                              const char *weight_2_path) {
   int F0 = 0, F1 = 0, F2 = 0;
 
   F0 = feature_0;
