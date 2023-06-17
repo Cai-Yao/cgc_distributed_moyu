@@ -18,6 +18,8 @@ file(GLOB PaRMAT_FILES "${PaRMAT_DIR}/src/*.cpp")
 add_executable(PaRMAT ${PaRMAT_FILES})
 target_link_libraries(PaRMAT PRIVATE pthread)
 
+#add include dirs
+include_directories(${CMAKE_SOURCE_DIR}/include)
 
 # add utils
 add_subdirectory(utils)

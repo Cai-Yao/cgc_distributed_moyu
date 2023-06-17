@@ -1,4 +1,4 @@
-add_library(utils gen_data.cpp)
+add_library(utils utils.cpp)
 
 file(MAKE_DIRECTORY ${EXECUTABLE_OUTPUT_PATH}/data)
 file(MAKE_DIRECTORY ${EXECUTABLE_OUTPUT_PATH}/data/graph)
