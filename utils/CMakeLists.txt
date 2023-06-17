@@ -1,7 +1,8 @@
 add_library(utils gen_data.cpp)
 
-add_custom_command(
-    TARGET utils POST_BUILD 
-    COMMAND ${CMAKE_COMMAND} -E copy 
-    ${CMAKE_CURRENT_SOURCE_DIR}/PaRMAT 
-    ${EXECUTABLE_OUTPUT_PATH})
+file(MAKE_DIRECTORY ${EXECUTABLE_OUTPUT_PATH}/data)
+file(MAKE_DIRECTORY ${EXECUTABLE_OUTPUT_PATH}/data/graph)
+file(MAKE_DIRECTORY ${EXECUTABLE_OUTPUT_PATH}/data/weight)
+file(MAKE_DIRECTORY ${EXECUTABLE_OUTPUT_PATH}/data/embedding)
+
+add_dependencies(utils PaRMAT)

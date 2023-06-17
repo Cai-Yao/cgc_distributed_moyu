@@ -1,4 +1,5 @@
 #include "utils.h"
+#include <cstdlib>
 #include <ctime>
 #include <fstream>
 #include <iostream>
@@ -74,6 +75,13 @@ void gen_weight() {
   ofile2.close();
 }
 
+void gen_graph(int V_, int E_) {
+  string cmd = "PaRMAT -nVertices " + to_string(V_) + " -nEdges " +
+               to_string(E_) + " -output data/graph/graph.txt > dev/null";
+  int res = system(cmd.c_str());
+  return;
+}
+
 void prepare_data(int V_, int E_, int F0_, int F1_, int F2_) {
   V = V_;
   E = E_;
@@ -84,6 +92,7 @@ void prepare_data(int V_, int E_, int F0_, int F1_, int F2_) {
   init();
   gen_embedding();
   gen_weight();
+  gen_graph(V_, E_);
 }
 
 } // namespace utils
