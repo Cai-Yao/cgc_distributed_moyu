@@ -77,7 +77,8 @@ void gen_weight() {
 
 void gen_graph(int V_, int E_) {
   string cmd = "PaRMAT -nVertices " + to_string(V_) + " -nEdges " +
-               to_string(E_) + " -output data/graph/graph.txt > dev/null";
+               to_string(E_) + " -output data/graph/graph_" + to_string(V_) +
+               "_" + to_string(E_)++ "_.txt > dev/null";
   int res = system(cmd.c_str());
   return;
 }
