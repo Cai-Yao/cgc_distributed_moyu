@@ -18,6 +18,9 @@ file(GLOB PaRMAT_FILES "${PaRMAT_DIR}/src/*.cpp")
 add_executable(PaRMAT ${PaRMAT_FILES})
 target_link_libraries(PaRMAT PRIVATE pthread)
 
+# add OpenBLAS library
+add_subdirectory(3rdparty/OpenBLAS)
+
 #add include dirs
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
