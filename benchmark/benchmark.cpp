@@ -1,5 +1,5 @@
-#include "impls/origin/origin_impl.h"
 #include "impls/openblas/openblas_impl.h"
+#include "impls/origin/origin_impl.h"
 #include "utils/utils.h"
 #include <benchmark/benchmark.h>
 #include <string>
@@ -103,7 +103,7 @@ static void BM_OpenBlasImpl(benchmark::State &state) {
       F1 = state.range(3), F2 = state.range(4);
   gen_data(V, E, F0, F1, F2);
   prepare_file_path(V, E, F0, F1, F2);
-  auto standard_res = impl::openblas::openblas_impl(
+  auto standard_res = impl::origin::origin_impl(
       F0, F1, F2, graph_path.c_str(), embedding_path.c_str(),
       weight1_path.c_str(), weight2_path.c_str());
   double diff = 0;
@@ -122,7 +122,7 @@ BENCHMARK(BM_OriginImpl)
     ->Apply(GenSmallTestParams)
     ->Unit(benchmark::kMillisecond)
     ->UseManualTime();
-  
+
 BENCHMARK(BM_OpenBlasImpl)
     ->Name("OpenBlas Implemention Small")
     ->Apply(GenSmallTestParams)
