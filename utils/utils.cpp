@@ -162,9 +162,6 @@ double time_recorder::get_average_duration(std::string key) {
 
 std::vector<std::string> &time_recorder::get_ids() { return ids; }
 
-void time_recorder::record_once() {
-  historys.emplace_back(hash);
-  hash.clear();
-}
+void time_recorder::record_once() { historys.emplace_back(hash); }
 
 } // namespace utils
