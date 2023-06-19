@@ -1,5 +1,8 @@
 #include "impls/openblas/openblas_impl.h"
+#include "common.h"
 #include <cblas.h>
+#include <cmath>
+#include <immintrin.h>
 
 using namespace std;
 
@@ -20,6 +23,29 @@ float *X0, *W1, *W2, *X1, *X1_inter, *X2, *X2_inter;
 
 } // namespace openblas
 } // namespace impl
+
+inline float findMax(float* arr, int size) {
+    __m256 maxVector = _mm256_loadu_ps(arr); 
+    int i = 8;
+    for (; i + 7 < size; i += 8) {
+        __m256 currentVector = _mm256_loadu_ps(arr + i);
+        maxVector = _mm256_max_ps(maxVector, currentVector); 
+    }
+
+    __m128 highVector = _mm256_extractf128_ps(maxVector, 1);
+    __m128 maxValues = _mm_max_ps(_mm256_castps256_ps128(maxVector), highVector);
+    for (int j = 0; j < 3; j++) {
+        maxValues = _mm_max_ps(maxValues, _mm_shuffle_ps(maxValues, maxValues, _MM_SHUFFLE(1, 0, 3, 2)));
+    }
+
+    float result = _mm_cvtss_f32(maxValues);
+    for (; i < size; i++) {
+        if (arr[i] > result) {
+            result = arr[i];
+        }
+    }
+    return result;
+}
 
 void impl::openblas::readGraph(const char *fname) {
   ifstream infile(fname);
@@ -59,10 +85,10 @@ void impl::openblas::raw_graph_to_AdjacencyList() {
 
 void impl::openblas::edgeNormalization() {
   for (int i = 0; i < v_num; i++) {
-    for (int j = 0; j < edge_index[i].size(); j++) {
-      float val = 1 / sqrt(degree[i]) / sqrt(degree[edge_index[i][j]]);
-      edge_val[i].push_back(val);
-    }
+        for (int j = 0; j < edge_index[i].size(); j++) {
+            float val = 1 / sqrt(degree[i]) / sqrt(degree[edge_index[i][j]]);
+            edge_val[i].push_back(val);
+        }
   }
 }
 
@@ -80,50 +106,44 @@ void impl::openblas::initFloat(float *&dst, int num) {
 
 void impl::openblas::XW(int in_dim, int out_dim, float *in_X, float *out_X,
                         float *W) {
-  // float(*tmp_in_X)[in_dim] = (float(*)[in_dim])in_X;
-  // float(*tmp_out_X)[out_dim] = (float(*)[out_dim])out_X;
-  // float(*tmp_W)[out_dim] = (float(*)[out_dim])W;
-
-  // in_X: [V][in_dim]
-  // out_X: [V][out_dim]
-  // W: [in_dim][out_dim]
-  // out_X = in_X * W
   cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, v_num, out_dim, in_dim,
               1.0, in_X, in_dim, W, out_dim, 0.0, out_X, out_dim);
-  // for (int i = 0; i < v_num; i++) {
-  //     for (int j = 0; j < out_dim; j++) {
-  //         for (int k = 0; k < in_dim; k++) {
-  //             tmp_out_X[i][j] += tmp_in_X[i][k] * tmp_W[k][j];
-  //         }
-  //     }
-  // }
 }
 
 void impl::openblas::AX(int dim, float *in_X, float *out_X) {
-  float(*tmp_in_X)[dim] = (float(*)[dim])in_X;
-  float(*tmp_out_X)[dim] = (float(*)[dim])out_X;
+    float(*tmp_in_X)[dim] = (float(*)[dim])in_X;
+    float(*tmp_out_X)[dim] = (float(*)[dim])out_X;
 
-  for (int i = 0; i < v_num; i++) {
-    vector<int> &nlist = edge_index[i];
-    for (int j = 0; j < nlist.size(); j++) {
-      int nbr = nlist[j];
-      for (int k = 0; k < dim; k++) {
-        tmp_out_X[i][k] += tmp_in_X[nbr][k] * edge_val[i][j];
-      }
+    for (int i = 0; i < v_num; i++) {
+        vector<int> &nlist = edge_index[i];
+        for (int j = 0; j < nlist.size(); j++) {
+            int nbr = nlist[j];
+            for (int k = 0; k < dim; k++) {
+                tmp_out_X[i][k] += tmp_in_X[nbr][k] * edge_val[i][j];
+            }
+        }
     }
-  }
 }
 
 void impl::openblas::ReLU(int dim, float *X) {
-  for (int i = 0; i < v_num * dim; i++)
-    if (X[i] < 0)
-      X[i] = 0;
+    const int num_elements = v_num * dim;
+    const int vector_size = 8;
+    const int num_threads = 4;
+
+// #pragma omp parallel for num_threads(num_threads)
+    for (int i = 0; i < num_elements; i += vector_size) {
+        __m256 values = _mm256_loadu_ps(X + i);
+        __m256 zero_vector = _mm256_setzero_ps();
+        __m256 result = _mm256_max_ps(values, zero_vector);
+        _mm256_storeu_ps(X + i, result);
+    }
 }
 
 void impl::openblas::LogSoftmax(int dim, float *X) {
   float(*tmp_X)[dim] = (float(*)[dim])X;
 
   for (int i = 0; i < v_num; i++) {
+    // float max = findMax(X + i * dim, dim);
     float max = tmp_X[i][0];
     for (int j = 1; j < dim; j++) {
       if (tmp_X[i][j] > max)
@@ -143,18 +163,19 @@ void impl::openblas::LogSoftmax(int dim, float *X) {
 }
 
 float impl::openblas::MaxRowSum(float *X, int dim) {
-  float(*tmp_X)[dim] = (float(*)[dim])X;
-  float max = -__FLT_MAX__;
+    float(*tmp_X)[dim] = (float(*)[dim])X;
+    float max = -__FLT_MAX__;
 
-  for (int i = 0; i < v_num; i++) {
-    float sum = 0;
-    for (int j = 0; j < dim; j++) {
-      sum += tmp_X[i][j];
+    for (int i = 0; i < v_num; i++) {
+        float sum = 0;
+        for (int j = 0; j < dim; j++) {
+            sum += tmp_X[i][j];
+        }
+        if (sum > max)
+        max = sum;
     }
-    if (sum > max)
-      max = sum;
-  }
-  return max;
+    return max;
+    // return findMax(X, v_num * dim);
 }
 
 void impl::openblas::freeFloats() {
@@ -172,9 +193,9 @@ void impl::openblas::freeFloats() {
 }
 
 void impl::openblas::somePreprocessing() {
-  // The graph  will be transformed into adjacency list ,you can use other data
-  // structure such as CSR
-  raw_graph_to_AdjacencyList();
+    // The graph  will be transformed into adjacency list ,you can use other data
+    // structure such as CSR
+    raw_graph_to_AdjacencyList();
 }
 
 float impl::openblas::openblas_impl(int feature_0, int feature_1, int feature_2,
