@@ -1,3 +1,7 @@
+#ifndef GCN_IMPLS_ORIGIN_ORIGIN_IMPL_H_
+#define GCN_IMPLS_ORIGIN_ORIGIN_IMPL_H_
+
+#include "utils/utils.h"
 #include <chrono>
 #include <fstream>
 #include <iomanip>
@@ -35,11 +39,12 @@ float MaxRowSum(float *X, int dim);
 void freeFloats();
 void somePreprocessing();
 
-std::pair<float, double> origin_impl(int feature_0, int feature_1,
-                                     int feature_2, const char *graph_path,
-                                     const char *embedding_path,
-                                     const char *weight_1_path,
-                                     const char *weight_2_path);
+float origin_impl(int feature_0, int feature_1, int feature_2,
+                  const char *graph_path, const char *embedding_path,
+                  const char *weight_1_path, const char *weight_2_path,
+                  utils::time_recorder &recorder);
 
 } // namespace origin
 } // namespace impl
+
+#endif

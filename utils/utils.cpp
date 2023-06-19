@@ -120,4 +120,51 @@ void prepare_data(int V_, int E_, int F0_, int F1_, int F2_) {
   gen_graph(V_, E_);
 }
 
+void time_recorder::begin_record(std::string key) {
+  if (!hash.count(key)) {
+    ids.push_back(key);
+  }
+  TimePoint now = std::chrono::steady_clock::now();
+  hash[key] = {now, now};
+}
+
+void time_recorder::end_record(std::string key) {
+  if (!hash.count(key)) {
+    ids.push_back(key);
+  }
+  TimePoint now = std::chrono::steady_clock::now();
+  auto &iter = hash[key];
+  iter.second = now;
+}
+
+double time_recorder::get_duration(std::string key) {
+  if (!hash.count(key)) {
+    return 0;
+  }
+  auto &iter = hash[key];
+  return std::chrono::duration<double, std::milli>(iter.second - iter.first)
+      .count();
+}
+
+double time_recorder::get_average_duration(std::string key) {
+  double cum = 0;
+  int cnt = 0;
+  for (auto &history : historys) {
+    if (history.count(key)) {
+      auto &iter = history[key];
+      cum += std::chrono::duration<double, std::milli>(iter.second - iter.first)
+                 .count();
+      ++cnt;
+    }
+  }
+  return cum / cnt;
+}
+
+std::vector<std::string> &time_recorder::get_ids() { return ids; }
+
+void time_recorder::record_once() {
+  historys.emplace_back(hash);
+  hash.clear();
+}
+
 } // namespace utils
