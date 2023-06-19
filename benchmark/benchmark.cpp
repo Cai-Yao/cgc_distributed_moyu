@@ -78,6 +78,7 @@ static void BM_OriginImpl(benchmark::State &state) {
       F0, F1, F2, graph_path.c_str(), embedding_path.c_str(),
       weight1_path.c_str(), weight2_path.c_str(), unuse_recorder);
   double diff = 0;
+  double run_time = 0;
   utils::time_recorder recorder;
   for (auto _ : state) {
     auto case_res = impl::origin::origin_impl(
@@ -85,7 +86,7 @@ static void BM_OriginImpl(benchmark::State &state) {
         weight1_path.c_str(), weight2_path.c_str(), recorder);
 
     diff = std::max(diff, double(abs(standard_res - case_res)));
-    double run_time = 0;
+    run_time = 0;
     for (auto &id : recorder.get_ids()) {
       run_time += recorder.get_duration(id);
     }
@@ -108,6 +109,7 @@ static void BM_OpenBlasImpl(benchmark::State &state) {
       F0, F1, F2, graph_path.c_str(), embedding_path.c_str(),
       weight1_path.c_str(), weight2_path.c_str(), unuse_recorder);
   double diff = 0;
+  double run_time = 0;
   utils::time_recorder recorder;
   for (auto _ : state) {
     auto case_res = impl::openblas::openblas_impl(
@@ -115,7 +117,7 @@ static void BM_OpenBlasImpl(benchmark::State &state) {
         weight1_path.c_str(), weight2_path.c_str(), recorder);
 
     diff = std::max(diff, double(abs(standard_res - case_res)));
-    double run_time = 0;
+    run_time = 0;
     for (auto &id : recorder.get_ids()) {
       run_time += recorder.get_duration(id);
     }
