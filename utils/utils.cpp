@@ -129,10 +129,10 @@ void time_recorder::begin_record(std::string key) {
 }
 
 void time_recorder::end_record(std::string key) {
+  TimePoint now = std::chrono::steady_clock::now();
   if (!hash.count(key)) {
     ids.push_back(key);
   }
-  TimePoint now = std::chrono::steady_clock::now();
   auto &iter = hash[key];
   iter.second = now;
 }

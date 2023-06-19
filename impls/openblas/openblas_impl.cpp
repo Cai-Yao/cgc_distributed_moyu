@@ -79,24 +79,24 @@ void impl::openblas::initFloat(float *&dst, int num) {
 }
 
 void impl::openblas::XW(int in_dim, int out_dim, float *in_X, float *out_X,
-                      float *W) {
-    // float(*tmp_in_X)[in_dim] = (float(*)[in_dim])in_X;
-    // float(*tmp_out_X)[out_dim] = (float(*)[out_dim])out_X;
-    // float(*tmp_W)[out_dim] = (float(*)[out_dim])W;
+                        float *W) {
+  // float(*tmp_in_X)[in_dim] = (float(*)[in_dim])in_X;
+  // float(*tmp_out_X)[out_dim] = (float(*)[out_dim])out_X;
+  // float(*tmp_W)[out_dim] = (float(*)[out_dim])W;
 
-    // in_X: [V][in_dim]
-    // out_X: [V][out_dim]
-    // W: [in_dim][out_dim]
-    // out_X = in_X * W
-    cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, v_num, out_dim, in_dim,
-                1.0, in_X, in_dim, W, out_dim, 0.0, out_X, out_dim);
-    // for (int i = 0; i < v_num; i++) {
-    //     for (int j = 0; j < out_dim; j++) {
-    //         for (int k = 0; k < in_dim; k++) {
-    //             tmp_out_X[i][j] += tmp_in_X[i][k] * tmp_W[k][j];
-    //         }
-    //     }
-    // }
+  // in_X: [V][in_dim]
+  // out_X: [V][out_dim]
+  // W: [in_dim][out_dim]
+  // out_X = in_X * W
+  cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, v_num, out_dim, in_dim,
+              1.0, in_X, in_dim, W, out_dim, 0.0, out_X, out_dim);
+  // for (int i = 0; i < v_num; i++) {
+  //     for (int j = 0; j < out_dim; j++) {
+  //         for (int k = 0; k < in_dim; k++) {
+  //             tmp_out_X[i][j] += tmp_in_X[i][k] * tmp_W[k][j];
+  //         }
+  //     }
+  // }
 }
 
 void impl::openblas::AX(int dim, float *in_X, float *out_X) {
@@ -177,12 +177,12 @@ void impl::openblas::somePreprocessing() {
   raw_graph_to_AdjacencyList();
 }
 
-std::pair<float, double> impl::openblas::openblas_impl(int feature_0, int feature_1,
-                                              int feature_2,
-                                              const char *graph_path,
-                                              const char *embedding_path,
-                                              const char *weight_1_path,
-                                              const char *weight_2_path) {
+float impl::openblas::openblas_impl(int feature_0, int feature_1, int feature_2,
+                                    const char *graph_path,
+                                    const char *embedding_path,
+                                    const char *weight_1_path,
+                                    const char *weight_2_path,
+                                    utils::time_recorder &recorder) {
   int F0 = 0, F1 = 0, F2 = 0;
 
   F0 = feature_0;
@@ -199,43 +199,52 @@ std::pair<float, double> impl::openblas::openblas_impl(int feature_0, int featur
   initFloat(X2, v_num * F2);
   initFloat(X2_inter, v_num * F2);
 
-  // Time point at the start of the computation
-  TimePoint start = chrono::steady_clock::now();
-
   // Preprocessing time should be included
-
+  recorder.begin_record("Preprocess");
   somePreprocessing();
+  recorder.end_record("Preprocess");
 
+  recorder.begin_record("Edge Norm");
   edgeNormalization();
+  recorder.end_record("Edge Norm");
 
   // printf("Layer1 XW\n");
+  recorder.begin_record("Layer1 XW");
   XW(F0, F1, X0, X1_inter, W1);
+  recorder.end_record("Layer1 XW");
 
   // printf("Layer1 AX\n");
+  recorder.begin_record("Layer1 AX");
   AX(F1, X1_inter, X1);
+  recorder.end_record("Layer1 AX");
 
   // printf("Layer1 ReLU\n");
+  recorder.begin_record("ReLU");
   ReLU(F1, X1);
+  recorder.end_record("ReLU");
 
   // printf("Layer2 XW\n");
+  recorder.begin_record("Layer2 XW");
   XW(F1, F2, X1, X2_inter, W2);
+  recorder.end_record("Layer2 XW");
 
   // printf("Layer2 AX\n");
+  recorder.begin_record("Layer2 AX");
   AX(F2, X2_inter, X2);
+  recorder.end_record("Layer2 AX");
 
   // printf("Layer2 LogSoftmax\n");
+  recorder.begin_record("LogSoftmax");
   LogSoftmax(F2, X2);
+  recorder.end_record("LogSoftmax");
 
   // You need to compute the max row sum for result verification
+  recorder.begin_record("MaxRowSum");
   float max_sum = MaxRowSum(X2, F2);
-
-  // Time point at the end of the computation
-  TimePoint end = chrono::steady_clock::now();
-  chrono::duration<double> l_durationSec = end - start;
-  double l_timeMs = l_durationSec.count() * 1e3;
+  recorder.end_record("MaxRowSum");
 
   // Remember to free your allocated memory
   freeFloats();
 
-  return {max_sum, l_timeMs};
+  return max_sum;
 }
