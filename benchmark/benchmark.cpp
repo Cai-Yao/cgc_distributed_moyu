@@ -163,7 +163,7 @@ BENCHMARK(BM_OpenBlasImpl)
     ->Iterations(5);
 
 BENCHMARK(BM_OpenBlasImpl)
-    ->Name("OpenBlas Implemention")
+    ->Name("OpenBlas Implemention Standard")
     ->Apply(GenStandardTestParams)
     ->Unit(benchmark::kMillisecond)
     ->UseManualTime()
