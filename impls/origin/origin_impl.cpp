@@ -170,12 +170,12 @@ void impl::origin::somePreprocessing() {
   raw_graph_to_AdjacencyList();
 }
 
-pair<float, double> impl::origin::origin_impl(int feature_0, int feature_1,
-                                              int feature_2,
-                                              const char *graph_path,
-                                              const char *embedding_path,
-                                              const char *weight_1_path,
-                                              const char *weight_2_path) {
+float impl::origin::origin_impl(int feature_0, int feature_1, int feature_2,
+                                const char *graph_path,
+                                const char *embedding_path,
+                                const char *weight_1_path,
+                                const char *weight_2_path,
+                                utils::time_recorder &recorder) {
   int F0 = 0, F1 = 0, F2 = 0;
 
   F0 = feature_0;
@@ -192,43 +192,52 @@ pair<float, double> impl::origin::origin_impl(int feature_0, int feature_1,
   initFloat(X2, v_num * F2);
   initFloat(X2_inter, v_num * F2);
 
-  // Time point at the start of the computation
-  TimePoint start = chrono::steady_clock::now();
-
   // Preprocessing time should be included
-
+  recorder.begin_record("Preprocess");
   somePreprocessing();
+  recorder.end_record("Preprocess");
 
+  recorder.begin_record("Edge Norm");
   edgeNormalization();
+  recorder.end_record("Edge Norm");
 
   // printf("Layer1 XW\n");
+  recorder.begin_record("Layer1 XW");
   XW(F0, F1, X0, X1_inter, W1);
+  recorder.end_record("Layer1 XW");
 
   // printf("Layer1 AX\n");
+  recorder.begin_record("Layer1 AX");
   AX(F1, X1_inter, X1);
+  recorder.end_record("Layer1 AX");
 
   // printf("Layer1 ReLU\n");
+  recorder.begin_record("ReLU");
   ReLU(F1, X1);
+  recorder.end_record("ReLU");
 
   // printf("Layer2 XW\n");
+  recorder.begin_record("Layer2 XW");
   XW(F1, F2, X1, X2_inter, W2);
+  recorder.end_record("Layer2 XW");
 
   // printf("Layer2 AX\n");
+  recorder.begin_record("Layer2 AX");
   AX(F2, X2_inter, X2);
+  recorder.end_record("Layer2 AX");
 
   // printf("Layer2 LogSoftmax\n");
+  recorder.begin_record("LogSoftmax");
   LogSoftmax(F2, X2);
+  recorder.end_record("LogSoftmax");
 
   // You need to compute the max row sum for result verification
+  recorder.begin_record("MaxRowSum");
   float max_sum = MaxRowSum(X2, F2);
-
-  // Time point at the end of the computation
-  TimePoint end = chrono::steady_clock::now();
-  chrono::duration<double> l_durationSec = end - start;
-  double l_timeMs = l_durationSec.count() * 1e3;
+  recorder.end_record("MaxRowSum");
 
   // Remember to free your allocated memory
   freeFloats();
 
-  return {max_sum, l_timeMs};
+  return max_sum;
 }

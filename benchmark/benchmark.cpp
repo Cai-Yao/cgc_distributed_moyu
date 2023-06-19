@@ -72,18 +72,29 @@ static void BM_OriginImpl(benchmark::State &state) {
       F1 = state.range(3), F2 = state.range(4);
   gen_data(V, E, F0, F1, F2);
   prepare_file_path(V, E, F0, F1, F2);
+  utils::time_recorder unuse_recorder;
   auto standard_res = impl::origin::origin_impl(
       F0, F1, F2, graph_path.c_str(), embedding_path.c_str(),
-      weight1_path.c_str(), weight2_path.c_str());
+      weight1_path.c_str(), weight2_path.c_str(), unuse_recorder);
   double diff = 0;
+  utils::time_recorder recorder;
   for (auto _ : state) {
     auto case_res = impl::origin::origin_impl(
         F0, F1, F2, graph_path.c_str(), embedding_path.c_str(),
-        weight1_path.c_str(), weight2_path.c_str());
-    state.SetIterationTime(case_res.second / 1e3);
-    diff = std::max(diff, double(abs(standard_res.first - case_res.first)));
+        weight1_path.c_str(), weight2_path.c_str(), recorder);
+
+    diff = std::max(diff, double(abs(standard_res - case_res)));
+    double run_time;
+    for (auto &id : recorder.get_ids()) {
+      run_time += recorder.get_duration(id);
+    }
+    state.SetIterationTime(run_time / 1e3);
+    recorder.record_once();
   }
   state.counters["Max Diff"] = diff;
+  for (auto &id : recorder.get_ids()) {
+    state.counters[id] = recorder.get_average_duration(id);
+  }
 }
 BENCHMARK(BM_OriginImpl)
     ->Name("Origin Implemention Small")
