@@ -1,6 +1,5 @@
 #include "impls/openblas/openblas_impl.h"
 #include "impls/origin/origin_impl.h"
-#include "impls/openblas/openblas_impl.h"
 #include "utils/utils.h"
 #include <benchmark/benchmark.h>
 #include <string>
@@ -136,7 +135,7 @@ BENCHMARK(BM_OriginImpl)
     ->Apply(GenSmallTestParams)
     ->Unit(benchmark::kMillisecond)
     ->UseManualTime();
-  
+
 BENCHMARK(BM_OpenBlasImpl)
     ->Name("OpenBlas Implemention Small")
     ->Apply(GenSmallTestParams)
