@@ -11,6 +11,7 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/lib)
 # add ccache
 find_program(CCACHE_FOUND NAMES ccache)
 if(CCACHE_FOUND)
+    message("Use ccache to speedup")
     set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ccache)
     # set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK ccache)
 endif(CCACHE_FOUND)
