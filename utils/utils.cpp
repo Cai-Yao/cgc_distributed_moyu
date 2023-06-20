@@ -129,10 +129,10 @@ void time_recorder::begin_record(std::string key) {
 }
 
 void time_recorder::end_record(std::string key) {
+  TimePoint now = std::chrono::steady_clock::now();
   if (!hash.count(key)) {
     ids.push_back(key);
   }
-  TimePoint now = std::chrono::steady_clock::now();
   auto &iter = hash[key];
   iter.second = now;
 }
@@ -162,9 +162,6 @@ double time_recorder::get_average_duration(std::string key) {
 
 std::vector<std::string> &time_recorder::get_ids() { return ids; }
 
-void time_recorder::record_once() {
-  historys.emplace_back(hash);
-  hash.clear();
-}
+void time_recorder::record_once() { historys.emplace_back(hash); }
 
 } // namespace utils

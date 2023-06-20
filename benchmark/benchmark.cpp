@@ -1,3 +1,4 @@
+#include "impls/openblas/openblas_impl.h"
 #include "impls/origin/origin_impl.h"
 #include "utils/utils.h"
 #include <benchmark/benchmark.h>
@@ -77,6 +78,7 @@ static void BM_OriginImpl(benchmark::State &state) {
       F0, F1, F2, graph_path.c_str(), embedding_path.c_str(),
       weight1_path.c_str(), weight2_path.c_str(), unuse_recorder);
   double diff = 0;
+  double run_time = 0;
   utils::time_recorder recorder;
   for (auto _ : state) {
     auto case_res = impl::origin::origin_impl(
@@ -84,7 +86,7 @@ static void BM_OriginImpl(benchmark::State &state) {
         weight1_path.c_str(), weight2_path.c_str(), recorder);
 
     diff = std::max(diff, double(abs(standard_res - case_res)));
-    double run_time;
+    run_time = 0;
     for (auto &id : recorder.get_ids()) {
       run_time += recorder.get_duration(id);
     }
@@ -96,14 +98,59 @@ static void BM_OriginImpl(benchmark::State &state) {
     state.counters[id] = recorder.get_average_duration(id);
   }
 }
+
+static void BM_OpenBlasImpl(benchmark::State &state) {
+  int V = state.range(0), E = state.range(1), F0 = state.range(2),
+      F1 = state.range(3), F2 = state.range(4);
+  gen_data(V, E, F0, F1, F2);
+  prepare_file_path(V, E, F0, F1, F2);
+  utils::time_recorder unuse_recorder;
+  auto standard_res = impl::origin::origin_impl(
+      F0, F1, F2, graph_path.c_str(), embedding_path.c_str(),
+      weight1_path.c_str(), weight2_path.c_str(), unuse_recorder);
+  double diff = 0;
+  double run_time = 0;
+  utils::time_recorder recorder;
+  for (auto _ : state) {
+    auto case_res = impl::openblas::openblas_impl(
+        F0, F1, F2, graph_path.c_str(), embedding_path.c_str(),
+        weight1_path.c_str(), weight2_path.c_str(), recorder);
+
+    diff = std::max(diff, double(abs(standard_res - case_res)));
+    run_time = 0;
+    for (auto &id : recorder.get_ids()) {
+      run_time += recorder.get_duration(id);
+    }
+    state.SetIterationTime(run_time / 1e3);
+    recorder.record_once();
+  }
+  state.counters["Max Diff"] = diff;
+  for (auto &id : recorder.get_ids()) {
+    state.counters[id] = recorder.get_average_duration(id);
+  }
+}
+
 BENCHMARK(BM_OriginImpl)
     ->Name("Origin Implemention Small")
     ->Apply(GenSmallTestParams)
     ->Unit(benchmark::kMillisecond)
     ->UseManualTime();
 
+BENCHMARK(BM_OpenBlasImpl)
+    ->Name("OpenBlas Implemention Small")
+    ->Apply(GenSmallTestParams)
+    ->Unit(benchmark::kMillisecond)
+    ->UseManualTime();
+
 BENCHMARK(BM_OriginImpl)
-    ->Name("Origin Implemention")
+    ->Name("Origin Implemention Standard")
+    ->Apply(GenStandardTestParams)
+    ->Unit(benchmark::kMillisecond)
+    ->UseManualTime()
+    ->Iterations(5);
+
+BENCHMARK(BM_OpenBlasImpl)
+    ->Name("OpenBlas Implemention Standard")
     ->Apply(GenStandardTestParams)
     ->Unit(benchmark::kMillisecond)
     ->UseManualTime()
