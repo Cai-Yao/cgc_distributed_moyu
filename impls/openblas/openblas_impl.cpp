@@ -182,7 +182,7 @@ float impl::openblas::openblas_impl(int feature_0, int feature_1, int feature_2,
                                     const char *embedding_path,
                                     const char *weight_1_path,
                                     const char *weight_2_path,
-                                    utils::time_recorder &recorder) {
+                                    utils::util_recorder &recorder) {
   int F0 = 0, F1 = 0, F2 = 0;
 
   F0 = feature_0;
@@ -200,47 +200,54 @@ float impl::openblas::openblas_impl(int feature_0, int feature_1, int feature_2,
   initFloat(X2_inter, v_num * F2);
 
   // Preprocessing time should be included
+  auto &preprocessing = recorder.get_preprocessinig();
   recorder.begin_record("Preprocess");
-  somePreprocessing();
+  preprocessing();
   recorder.end_record("Preprocess");
 
+  auto &edge_norm = recorder.get_edge_norm();
   recorder.begin_record("Edge Norm");
-  edgeNormalization();
+  edge_norm();
   recorder.end_record("Edge Norm");
 
   // printf("Layer1 XW\n");
+  auto &xw_func = recorder.get_XW();
   recorder.begin_record("Layer1 XW");
-  XW(F0, F1, X0, X1_inter, W1);
+  xw_func(F0, F1, X0, X1_inter, W1);
   recorder.end_record("Layer1 XW");
 
   // printf("Layer1 AX\n");
+  auto &ax_func = recorder.get_AX();
   recorder.begin_record("Layer1 AX");
-  AX(F1, X1_inter, X1);
+  ax_func(F1, X1_inter, X1);
   recorder.end_record("Layer1 AX");
 
   // printf("Layer1 ReLU\n");
+  auto &relu_func = recorder.get_ReLU();
   recorder.begin_record("ReLU");
-  ReLU(F1, X1);
+  relu_func(F1, X1);
   recorder.end_record("ReLU");
 
   // printf("Layer2 XW\n");
   recorder.begin_record("Layer2 XW");
-  XW(F1, F2, X1, X2_inter, W2);
+  xw_func(F1, F2, X1, X2_inter, W2);
   recorder.end_record("Layer2 XW");
 
   // printf("Layer2 AX\n");
   recorder.begin_record("Layer2 AX");
-  AX(F2, X2_inter, X2);
+  ax_func(F2, X2_inter, X2);
   recorder.end_record("Layer2 AX");
 
   // printf("Layer2 LogSoftmax\n");
+  auto &logsoftmax_func = recorder.get_LogSoftmax();
   recorder.begin_record("LogSoftmax");
-  LogSoftmax(F2, X2);
+  logsoftmax_func(F2, X2);
   recorder.end_record("LogSoftmax");
 
   // You need to compute the max row sum for result verification
+  auto &maxsum_func = recorder.get_MaxRowSum();
   recorder.begin_record("MaxRowSum");
-  float max_sum = MaxRowSum(X2, F2);
+  float max_sum = maxsum_func(X2, F2);
   recorder.end_record("MaxRowSum");
 
   // Remember to free your allocated memory

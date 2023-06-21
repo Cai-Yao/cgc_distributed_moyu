@@ -120,7 +120,10 @@ void prepare_data(int V_, int E_, int F0_, int F1_, int F2_) {
   gen_graph(V_, E_);
 }
 
-void time_recorder::begin_record(std::string key) {
+void util_recorder::begin_record(std::string key) {
+  if (!enable_time) {
+    return;
+  }
   if (!hash.count(key)) {
     ids.push_back(key);
   }
@@ -128,7 +131,10 @@ void time_recorder::begin_record(std::string key) {
   hash[key] = {now, now};
 }
 
-void time_recorder::end_record(std::string key) {
+void util_recorder::end_record(std::string key) {
+  if (!enable_time) {
+    return;
+  }
   TimePoint now = std::chrono::steady_clock::now();
   if (!hash.count(key)) {
     ids.push_back(key);
@@ -137,7 +143,7 @@ void time_recorder::end_record(std::string key) {
   iter.second = now;
 }
 
-double time_recorder::get_duration(std::string key) {
+double util_recorder::get_duration(std::string key) {
   if (!hash.count(key)) {
     return 0;
   }
@@ -146,7 +152,7 @@ double time_recorder::get_duration(std::string key) {
       .count();
 }
 
-double time_recorder::get_average_duration(std::string key) {
+double util_recorder::get_average_duration(std::string key) {
   double cum = 0;
   int cnt = 0;
   for (auto &history : historys) {
@@ -160,8 +166,8 @@ double time_recorder::get_average_duration(std::string key) {
   return cum / cnt;
 }
 
-std::vector<std::string> &time_recorder::get_ids() { return ids; }
+std::vector<std::string> &util_recorder::get_ids() { return ids; }
 
-void time_recorder::record_once() { historys.emplace_back(hash); }
+void util_recorder::record_once() { historys.emplace_back(hash); }
 
 } // namespace utils

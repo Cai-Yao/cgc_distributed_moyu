@@ -42,7 +42,7 @@ void somePreprocessing();
 float openblas_impl(int feature_0, int feature_1, int feature_2,
                     const char *graph_path, const char *embedding_path,
                     const char *weight_1_path, const char *weight_2_path,
-                    utils::time_recorder &recorder);
+                    utils::util_recorder &recorder);
 
 } // namespace openblas
 } // namespace impl
