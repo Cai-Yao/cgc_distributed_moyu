@@ -91,7 +91,7 @@ void impl::openblas::edgeNormalization() {
       edge_val[i].push_back(val);
     }
   }
-}
+} 
 
 void impl::openblas::readFloat(const char *fname, float *&dst, int num) {
   dst = (float *)malloc(num * sizeof(float));
@@ -128,16 +128,13 @@ void impl::openblas::AX(int dim, float *in_X, float *out_X) {
 
 void impl::openblas::ReLU(int dim, float *X) {
   const int num_elements = v_num * dim;
-  const int vector_size = 8;
-  const int num_threads = 4;
+  const int vector_size = 16;
 
-  // #pragma omp parallel for num_threads(num_threads)
-  // #pragma omp parallel
   for (int i = 0; i < num_elements; i += vector_size) {
-    __m256 values = _mm256_loadu_ps(X + i);
-    __m256 zero_vector = _mm256_setzero_ps();
-    __m256 result = _mm256_max_ps(values, zero_vector);
-    _mm256_storeu_ps(X + i, result);
+    __m512 values = _mm512_loadu_ps(X + i);
+    __m512 zero_vector = _mm512_setzero_ps();
+    __m512 result = _mm512_max_ps(values, zero_vector);
+    _mm512_storeu_ps(X + i, result);
   }
 }
 
