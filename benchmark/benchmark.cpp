@@ -68,34 +68,35 @@ static void GenStandardTestParams(benchmark::internal::Benchmark *b) {
   }
 }
 
+utils::util_recorder *recorder;
+
 static void BM_OriginImpl(benchmark::State &state) {
   int V = state.range(0), E = state.range(1), F0 = state.range(2),
       F1 = state.range(3), F2 = state.range(4);
   gen_data(V, E, F0, F1, F2);
   prepare_file_path(V, E, F0, F1, F2);
-  utils::time_recorder unuse_recorder;
   auto standard_res = impl::origin::origin_impl(
       F0, F1, F2, graph_path.c_str(), embedding_path.c_str(),
-      weight1_path.c_str(), weight2_path.c_str(), unuse_recorder);
+      weight1_path.c_str(), weight2_path.c_str(), *recorder);
   double diff = 0;
   double run_time = 0;
-  utils::time_recorder recorder;
+  recorder->enable_record_time(true);
   for (auto _ : state) {
     auto case_res = impl::origin::origin_impl(
         F0, F1, F2, graph_path.c_str(), embedding_path.c_str(),
-        weight1_path.c_str(), weight2_path.c_str(), recorder);
+        weight1_path.c_str(), weight2_path.c_str(), *recorder);
 
     diff = std::max(diff, double(abs(standard_res - case_res)));
     run_time = 0;
-    for (auto &id : recorder.get_ids()) {
-      run_time += recorder.get_duration(id);
+    for (auto &id : recorder->get_ids()) {
+      run_time += recorder->get_duration(id);
     }
     state.SetIterationTime(run_time / 1e3);
-    recorder.record_once();
+    recorder->record_once();
   }
   state.counters["Max Diff"] = diff;
-  for (auto &id : recorder.get_ids()) {
-    state.counters[id] = recorder.get_average_duration(id);
+  for (auto &id : recorder->get_ids()) {
+    state.counters[id] = recorder->get_average_duration(id);
   }
 }
 
@@ -104,47 +105,69 @@ static void BM_OpenBlasImpl(benchmark::State &state) {
       F1 = state.range(3), F2 = state.range(4);
   gen_data(V, E, F0, F1, F2);
   prepare_file_path(V, E, F0, F1, F2);
-  utils::time_recorder unuse_recorder;
   auto standard_res = impl::origin::origin_impl(
       F0, F1, F2, graph_path.c_str(), embedding_path.c_str(),
-      weight1_path.c_str(), weight2_path.c_str(), unuse_recorder);
+      weight1_path.c_str(), weight2_path.c_str(), *recorder);
   double diff = 0;
   double run_time = 0;
-  utils::time_recorder recorder;
+  recorder->enable_record_time(true);
   for (auto _ : state) {
     auto case_res = impl::openblas::openblas_impl(
         F0, F1, F2, graph_path.c_str(), embedding_path.c_str(),
-        weight1_path.c_str(), weight2_path.c_str(), recorder);
+        weight1_path.c_str(), weight2_path.c_str(), *recorder);
 
     diff = std::max(diff, double(abs(standard_res - case_res)));
     run_time = 0;
-    for (auto &id : recorder.get_ids()) {
-      run_time += recorder.get_duration(id);
+    for (auto &id : recorder->get_ids()) {
+      run_time += recorder->get_duration(id);
     }
     state.SetIterationTime(run_time / 1e3);
-    recorder.record_once();
+    recorder->record_once();
   }
   state.counters["Max Diff"] = diff;
-  for (auto &id : recorder.get_ids()) {
-    state.counters[id] = recorder.get_average_duration(id);
+  for (auto &id : recorder->get_ids()) {
+    state.counters[id] = recorder->get_average_duration(id);
   }
+}
+
+static void BaseSetup(const benchmark::State &state) {
+  recorder = new utils::util_recorder();
+}
+
+static void BaseTeardown(const benchmark::State &state) { delete recorder; }
+
+static void OpenBlasBaseSetup(const benchmark::State &state) {
+  recorder = new utils::util_recorder();
+  recorder->set_preprocessing(impl::openblas::somePreprocessing);
+  recorder->set_edge_norm(impl::openblas::edgeNormalization);
+  recorder->set_XW(impl::openblas::XW);
+  recorder->set_AX(impl::openblas::AX);
+  recorder->set_ReLU(impl::openblas::ReLU);
+  recorder->set_LogSoftmax(impl::openblas::LogSoftmax);
+  recorder->set_MaxRowSum(impl::openblas::MaxRowSum);
 }
 
 BENCHMARK(BM_OriginImpl)
     ->Name("Origin Implemention Small")
     ->Apply(GenSmallTestParams)
+    ->Setup(BaseSetup)
+    ->Teardown(BaseTeardown)
     ->Unit(benchmark::kMillisecond)
     ->UseManualTime();
 
 BENCHMARK(BM_OpenBlasImpl)
     ->Name("OpenBlas Implemention Small")
     ->Apply(GenSmallTestParams)
+    ->Setup(OpenBlasBaseSetup)
+    ->Teardown(BaseTeardown)
     ->Unit(benchmark::kMillisecond)
     ->UseManualTime();
 
 BENCHMARK(BM_OriginImpl)
     ->Name("Origin Implemention Standard")
     ->Apply(GenStandardTestParams)
+    ->Setup(BaseSetup)
+    ->Teardown(BaseTeardown)
     ->Unit(benchmark::kMillisecond)
     ->UseManualTime()
     ->Iterations(5);
@@ -152,6 +175,8 @@ BENCHMARK(BM_OriginImpl)
 BENCHMARK(BM_OpenBlasImpl)
     ->Name("OpenBlas Implemention Standard")
     ->Apply(GenStandardTestParams)
+    ->Setup(OpenBlasBaseSetup)
+    ->Teardown(BaseTeardown)
     ->Unit(benchmark::kMillisecond)
     ->UseManualTime()
     ->Iterations(5);
