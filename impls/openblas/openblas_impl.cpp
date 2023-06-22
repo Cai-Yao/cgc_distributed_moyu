@@ -25,27 +25,17 @@ float *X0, *W1, *W2, *X1, *X1_inter, *X2, *X2_inter;
 } // namespace impl
 
 inline float findMax(float *arr, int size) {
-  __m256 maxVector = _mm256_loadu_ps(arr);
-  int i = 8;
-  for (; i + 7 < size; i += 8) {
-    __m256 currentVector = _mm256_loadu_ps(arr + i);
-    maxVector = _mm256_max_ps(maxVector, currentVector);
+  __m512 max_vector = _mm512_setzero_ps(), current_vector;
+  int i = 0;
+  for (; (i + 15) < size; i += 16) {
+    current_vector = _mm512_loadu_ps(arr + i);
+    max_vector = _mm512_max_ps(max_vector, current_vector);
   }
-
-  __m128 highVector = _mm256_extractf128_ps(maxVector, 1);
-  __m128 maxValues = _mm_max_ps(_mm256_castps256_ps128(maxVector), highVector);
-  for (int j = 0; j < 3; j++) {
-    maxValues = _mm_max_ps(maxValues, _mm_shuffle_ps(maxValues, maxValues,
-                                                     _MM_SHUFFLE(1, 0, 3, 2)));
-  }
-
-  float result = _mm_cvtss_f32(maxValues);
-  for (; i < size; i++) {
-    if (arr[i] > result) {
-      result = arr[i];
-    }
-  }
-  return result;
+  int remain = size - i;
+  __mmask16 mask = (1 << remain) - 1;
+  current_vector = _mm512_maskz_loadu_ps(mask, arr + i);
+  max_vector = _mm512_max_ps(max_vector, current_vector);
+  return _mm512_reduce_max_ps(max_vector);
 }
 
 void impl::openblas::readGraph(const char *fname) {
@@ -91,7 +81,7 @@ void impl::openblas::edgeNormalization() {
       edge_val[i].push_back(val);
     }
   }
-} 
+}
 
 void impl::openblas::readFloat(const char *fname, float *&dst, int num) {
   dst = (float *)malloc(num * sizeof(float));
@@ -129,13 +119,18 @@ void impl::openblas::AX(int dim, float *in_X, float *out_X) {
 void impl::openblas::ReLU(int dim, float *X) {
   const int num_elements = v_num * dim;
   const int vector_size = 16;
-
-  for (int i = 0; i < num_elements; i += vector_size) {
-    __m512 values = _mm512_loadu_ps(X + i);
-    __m512 zero_vector = _mm512_setzero_ps();
-    __m512 result = _mm512_max_ps(values, zero_vector);
-    _mm512_storeu_ps(X + i, result);
+  int i = 0;
+  __m512 zero_vector = _mm512_setzero_ps(), cache_vector, res_vector;
+  for (; (i + 15) < num_elements; i += vector_size) {
+    cache_vector = _mm512_loadu_ps(X + i);
+    res_vector = _mm512_max_ps(cache_vector, zero_vector);
+    _mm512_storeu_ps(X + i, res_vector);
   }
+  int remain = num_elements - i;
+  __mmask16 mask = (1 << remain) - 1;
+  cache_vector = _mm512_maskz_loadu_ps(mask, X + i);
+  res_vector = _mm512_maskz_max_ps(mask, cache_vector, zero_vector);
+  _mm512_mask_storeu_ps(X + i, mask, res_vector);
 }
 
 void impl::openblas::LogSoftmax(int dim, float *X) {
