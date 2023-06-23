@@ -22,8 +22,6 @@ vector<int> raw_graph;
 
 float *X0, *W1, *W2, *X1, *X1_inter, *X2, *X2_inter;
 
-float *softmax_max, *softmax_one_vec, *softmax_X;
-
 } // namespace openblas
 } // namespace impl
 
@@ -160,9 +158,6 @@ void impl::openblas::LogSoftmax(int dim, float *X) {
 }
 
 void impl::openblas::LogSoftmaxOpt(int dim, float *X) {
-  for (int i = 0; i < dim; ++i) {
-    softmax_one_vec[i] = 1;
-  }
   int align_size = dim - (dim % 8);
   int align512_size = dim - (dim % 16);
   for (int i = 0; i < v_num; i++) {
@@ -230,9 +225,6 @@ void impl::openblas::freeFloats() {
   free(X2);
   free(X1_inter);
   free(X2_inter);
-  free(softmax_max);
-  free(softmax_one_vec);
-  free(softmax_X);
   edge_index.clear();
   edge_val.clear();
   degree.clear();
@@ -266,10 +258,6 @@ float impl::openblas::openblas_impl(int feature_0, int feature_1, int feature_2,
   initFloat(X1_inter, v_num * F1);
   initFloat(X2, v_num * F2);
   initFloat(X2_inter, v_num * F2);
-
-  initFloat(softmax_max, v_num);
-  initFloat(softmax_one_vec, F2);
-  initFloat(softmax_X, v_num * F2);
 
   // Preprocessing time should be included
   auto &preprocessing = recorder.get_preprocessinig();
