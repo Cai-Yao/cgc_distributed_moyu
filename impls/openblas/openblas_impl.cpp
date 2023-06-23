@@ -22,6 +22,7 @@ vector<int> raw_graph;
 
 float *X0, *W1, *W2, *X1, *X1_inter, *X2, *X2_inter;
 
+float *MaxRowSum_OneVec, *MaxRowSum_SumVec;
 } // namespace openblas
 } // namespace impl
 
@@ -35,7 +36,8 @@ inline float findMax(float *arr, int size) {
   if (size % 16) {
     __mmask16 mask = (1 << (size % 16)) - 1;
     current_vector = _mm512_maskz_loadu_ps(mask, arr + i);
-    max_vector = _mm512_max_ps(max_vector, current_vector);
+    max_vector =
+        _mm512_mask_max_ps(max_vector, mask, max_vector, current_vector);
   }
   return _mm512_reduce_max_ps(max_vector);
 }
@@ -217,6 +219,15 @@ float impl::openblas::MaxRowSum(float *X, int dim) {
   // return findMax(X, v_num * dim);
 }
 
+float impl::openblas::MaxRowSumOpt(float *X, int dim) {
+  for (int i = 0; i < dim; ++i) {
+    MaxRowSum_OneVec[i] = 1;
+  }
+  cblas_sgemv(CblasRowMajor, CblasNoTrans, v_num, dim, 1, X, dim,
+              MaxRowSum_OneVec, 1, 0, MaxRowSum_SumVec, 1);
+  return findMax(MaxRowSum_SumVec, v_num);
+}
+
 void impl::openblas::freeFloats() {
   free(X0);
   free(W1);
@@ -225,6 +236,8 @@ void impl::openblas::freeFloats() {
   free(X2);
   free(X1_inter);
   free(X2_inter);
+  free(MaxRowSum_OneVec);
+  free(MaxRowSum_SumVec);
   edge_index.clear();
   edge_val.clear();
   degree.clear();
@@ -258,6 +271,9 @@ float impl::openblas::openblas_impl(int feature_0, int feature_1, int feature_2,
   initFloat(X1_inter, v_num * F1);
   initFloat(X2, v_num * F2);
   initFloat(X2_inter, v_num * F2);
+
+  initFloat(MaxRowSum_OneVec, F2);
+  initFloat(MaxRowSum_SumVec, v_num);
 
   // Preprocessing time should be included
   auto &preprocessing = recorder.get_preprocessinig();
