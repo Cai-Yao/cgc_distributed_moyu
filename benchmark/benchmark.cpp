@@ -174,6 +174,14 @@ BENCHMARK(BM_OpenBlasImpl)
     ->Unit(benchmark::kMillisecond)
     ->UseManualTime();
 
+BENCHMARK(BM_OpenBlasImpl)
+    ->Name("OpenBlas Opt Implemention Small")
+    ->Apply(GenSmallTestParams)
+    ->Setup(OpenBlasOptSetup)
+    ->Teardown(BaseTeardown)
+    ->Unit(benchmark::kMillisecond)
+    ->UseManualTime();
+
 BENCHMARK(BM_OriginImpl)
     ->Name("Origin Implemention Standard")
     ->Apply(GenStandardTestParams)
