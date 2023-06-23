@@ -147,6 +147,17 @@ static void OpenBlasBaseSetup(const benchmark::State &state) {
   recorder->set_MaxRowSum(impl::openblas::MaxRowSum);
 }
 
+static void OpenBlasSoftMaxSetup(const benchmark::State &state) {
+  recorder = new utils::util_recorder();
+  recorder->set_preprocessing(impl::openblas::somePreprocessing);
+  recorder->set_edge_norm(impl::openblas::edgeNormalization);
+  recorder->set_XW(impl::openblas::XW);
+  recorder->set_AX(impl::openblas::AX);
+  recorder->set_ReLU(impl::openblas::ReLU);
+  recorder->set_LogSoftmax(impl::openblas::LogSoftmaxOpt);
+  recorder->set_MaxRowSum(impl::openblas::MaxRowSum);
+}
+
 BENCHMARK(BM_OriginImpl)
     ->Name("Origin Implemention Small")
     ->Apply(GenSmallTestParams)
@@ -176,6 +187,15 @@ BENCHMARK(BM_OpenBlasImpl)
     ->Name("OpenBlas Implemention Standard")
     ->Apply(GenStandardTestParams)
     ->Setup(OpenBlasBaseSetup)
+    ->Teardown(BaseTeardown)
+    ->Unit(benchmark::kMillisecond)
+    ->UseManualTime()
+    ->Iterations(5);
+
+BENCHMARK(BM_OpenBlasImpl)
+    ->Name("OpenBlas Implemention Standard Loftmax Opt")
+    ->Apply(GenStandardTestParams)
+    ->Setup(OpenBlasSoftMaxSetup)
     ->Teardown(BaseTeardown)
     ->Unit(benchmark::kMillisecond)
     ->UseManualTime()
