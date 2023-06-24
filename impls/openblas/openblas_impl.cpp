@@ -160,36 +160,34 @@ void impl::openblas::LogSoftmax(int dim, float *X) {
 }
 
 void impl::openblas::LogSoftmaxOpt(int dim, float *X) {
-  int align_size = dim - (dim % 8);
-  int align512_size = dim - (dim % 16);
+  int align_size = dim - (dim % 16);
   for (int i = 0; i < v_num; i++) {
     float *curline = X + i * dim;
-    __m256 scalar_vec;
-    __m256 sum_vec = _mm256_setzero_ps();
+    __m512 scalar_vec;
+    __m512 sum_vec = _mm512_setzero_ps();
     float curmax = findMax(curline, dim);
-    scalar_vec = _mm256_set1_ps(curmax);
+    scalar_vec = _mm512_set1_ps(curmax);
 
     int j = 0;
-    for (; j < align_size; j += 8) {
-      __m256 input_vec = _mm256_loadu_ps(curline + j);
-      input_vec = _mm256_sub_ps(input_vec, scalar_vec);
-      input_vec = avxop::exp256_ps(input_vec);
-      sum_vec = _mm256_add_ps(sum_vec, input_vec);
+    for (; j < align_size; j += 16) {
+      __m512 input_vec = _mm512_loadu_ps(curline + j);
+      input_vec = _mm512_sub_ps(input_vec, scalar_vec);
+      input_vec = avxop::exp512_ps(input_vec);
+      sum_vec = _mm512_add_ps(sum_vec, input_vec);
     }
-    if (dim % 8) {
-      __mmask8 mask = (1 << (dim % 8)) - 1;
-      __m256 input_vec = _mm256_maskz_loadu_ps(mask, curline + j);
-      input_vec = avxop::exp256_ps(input_vec);
-      sum_vec = _mm256_mask_add_ps(sum_vec, mask, sum_vec, input_vec);
+    if (dim % 16) {
+      __mmask16 mask = (1 << (dim % 16)) - 1;
+      __m512 input_vec = _mm512_maskz_loadu_ps(mask, curline + j);
+      input_vec = avxop::exp512_ps(input_vec);
+      sum_vec = _mm512_mask_add_ps(sum_vec, mask, sum_vec, input_vec);
     }
 
-    float result = _mm512_reduce_add_ps(_mm512_insertf32x8(
-        _mm512_castps256_ps512(sum_vec), _mm256_setzero_ps(), 1));
+    float result = _mm512_reduce_add_ps(sum_vec);
     result = log(result);
 
     __m512 scalar512_vec = _mm512_set1_ps(curmax + result);
     j = 0;
-    for (; j < align512_size; j += 16) {
+    for (; j < align_size; j += 16) {
       __m512 cur = _mm512_loadu_ps(curline + j);
       cur = _mm512_sub_ps(cur, scalar512_vec);
       _mm512_storeu_ps(curline + j, cur);
