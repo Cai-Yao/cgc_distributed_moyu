@@ -6,8 +6,9 @@
 namespace impl {
 namespace avxop {
 __m256 exp256_ps(__m256 x);
+__m512 exp512_ps(__m512 x);
 
-}
+} // namespace avxop
 } // namespace impl
 
 #endif
