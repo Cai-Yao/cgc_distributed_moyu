@@ -1,5 +1,9 @@
 #include "impls/openblas/openblas_impl.h"
+#include "common.h"
+#include "impls/avxop/avxop_impl.h"
 #include <cblas.h>
+#include <cmath>
+#include <immintrin.h>
 
 using namespace std;
 
@@ -18,8 +22,25 @@ vector<int> raw_graph;
 
 float *X0, *W1, *W2, *X1, *X1_inter, *X2, *X2_inter;
 
+float *MaxRowSum_OneVec, *MaxRowSum_SumVec;
 } // namespace openblas
 } // namespace impl
+
+inline float findMax(float *arr, int size) {
+  __m512 max_vector = _mm512_setzero_ps(), current_vector;
+  int i = 0, align_size = size - (size % 16);
+  for (; i < align_size; i += 16) {
+    current_vector = _mm512_loadu_ps(arr + i);
+    max_vector = _mm512_max_ps(max_vector, current_vector);
+  }
+  if (size % 16) {
+    __mmask16 mask = (1 << (size % 16)) - 1;
+    current_vector = _mm512_maskz_loadu_ps(mask, arr + i);
+    max_vector =
+        _mm512_mask_max_ps(max_vector, mask, max_vector, current_vector);
+  }
+  return _mm512_reduce_max_ps(max_vector);
+}
 
 void impl::openblas::readGraph(const char *fname) {
   ifstream infile(fname);
@@ -80,23 +101,8 @@ void impl::openblas::initFloat(float *&dst, int num) {
 
 void impl::openblas::XW(int in_dim, int out_dim, float *in_X, float *out_X,
                         float *W) {
-  // float(*tmp_in_X)[in_dim] = (float(*)[in_dim])in_X;
-  // float(*tmp_out_X)[out_dim] = (float(*)[out_dim])out_X;
-  // float(*tmp_W)[out_dim] = (float(*)[out_dim])W;
-
-  // in_X: [V][in_dim]
-  // out_X: [V][out_dim]
-  // W: [in_dim][out_dim]
-  // out_X = in_X * W
   cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, v_num, out_dim, in_dim,
               1.0, in_X, in_dim, W, out_dim, 0.0, out_X, out_dim);
-  // for (int i = 0; i < v_num; i++) {
-  //     for (int j = 0; j < out_dim; j++) {
-  //         for (int k = 0; k < in_dim; k++) {
-  //             tmp_out_X[i][j] += tmp_in_X[i][k] * tmp_W[k][j];
-  //         }
-  //     }
-  // }
 }
 
 void impl::openblas::AX(int dim, float *in_X, float *out_X) {
@@ -115,9 +121,20 @@ void impl::openblas::AX(int dim, float *in_X, float *out_X) {
 }
 
 void impl::openblas::ReLU(int dim, float *X) {
-  for (int i = 0; i < v_num * dim; i++)
-    if (X[i] < 0)
-      X[i] = 0;
+  const int num_elements = v_num * dim;
+  int i = 0, align_size = num_elements - (num_elements % 16);
+  __m512 zero_vector = _mm512_setzero_ps(), cache_vector, res_vector;
+  for (; i < align_size; i += 16) {
+    cache_vector = _mm512_loadu_ps(X + i);
+    res_vector = _mm512_max_ps(cache_vector, zero_vector);
+    _mm512_storeu_ps(X + i, res_vector);
+  }
+  if (num_elements % 16) {
+    __mmask16 mask = (1 << (num_elements % 16)) - 1;
+    cache_vector = _mm512_maskz_loadu_ps(mask, X + i);
+    res_vector = _mm512_maskz_max_ps(mask, cache_vector, zero_vector);
+    _mm512_mask_storeu_ps(X + i, mask, res_vector);
+  }
 }
 
 void impl::openblas::LogSoftmax(int dim, float *X) {
@@ -142,6 +159,50 @@ void impl::openblas::LogSoftmax(int dim, float *X) {
   }
 }
 
+void impl::openblas::LogSoftmaxOpt(int dim, float *X) {
+  int align_size = dim - (dim % 8);
+  int align512_size = dim - (dim % 16);
+  for (int i = 0; i < v_num; i++) {
+    float *curline = X + i * dim;
+    __m256 scalar_vec;
+    __m256 sum_vec = _mm256_setzero_ps();
+    float curmax = findMax(curline, dim);
+    scalar_vec = _mm256_set1_ps(curmax);
+
+    int j = 0;
+    for (; j < align_size; j += 8) {
+      __m256 input_vec = _mm256_loadu_ps(curline + j);
+      input_vec = _mm256_sub_ps(input_vec, scalar_vec);
+      input_vec = avxop::exp256_ps(input_vec);
+      sum_vec = _mm256_add_ps(sum_vec, input_vec);
+    }
+    if (dim % 8) {
+      __mmask8 mask = (1 << (dim % 8)) - 1;
+      __m256 input_vec = _mm256_maskz_loadu_ps(mask, curline + j);
+      input_vec = avxop::exp256_ps(input_vec);
+      sum_vec = _mm256_mask_add_ps(sum_vec, mask, sum_vec, input_vec);
+    }
+
+    float result = _mm512_reduce_add_ps(_mm512_insertf32x8(
+        _mm512_castps256_ps512(sum_vec), _mm256_setzero_ps(), 1));
+    result = log(result);
+
+    __m512 scalar512_vec = _mm512_set1_ps(curmax + result);
+    j = 0;
+    for (; j < align512_size; j += 16) {
+      __m512 cur = _mm512_loadu_ps(curline + j);
+      cur = _mm512_sub_ps(cur, scalar512_vec);
+      _mm512_storeu_ps(curline + j, cur);
+    }
+    if (dim % 16) {
+      __mmask16 mask = (1 << (dim % 16)) - 1;
+      __m512 cur = _mm512_maskz_loadu_ps(mask, curline + j);
+      cur = _mm512_sub_ps(cur, scalar512_vec);
+      _mm512_mask_storeu_ps(curline + j, mask, cur);
+    }
+  }
+}
+
 float impl::openblas::MaxRowSum(float *X, int dim) {
   float(*tmp_X)[dim] = (float(*)[dim])X;
   float max = -__FLT_MAX__;
@@ -155,6 +216,16 @@ float impl::openblas::MaxRowSum(float *X, int dim) {
       max = sum;
   }
   return max;
+  // return findMax(X, v_num * dim);
+}
+
+float impl::openblas::MaxRowSumOpt(float *X, int dim) {
+  for (int i = 0; i < dim; ++i) {
+    MaxRowSum_OneVec[i] = 1;
+  }
+  cblas_sgemv(CblasRowMajor, CblasNoTrans, v_num, dim, 1, X, dim,
+              MaxRowSum_OneVec, 1, 0, MaxRowSum_SumVec, 1);
+  return findMax(MaxRowSum_SumVec, v_num);
 }
 
 void impl::openblas::freeFloats() {
@@ -165,6 +236,8 @@ void impl::openblas::freeFloats() {
   free(X2);
   free(X1_inter);
   free(X2_inter);
+  free(MaxRowSum_OneVec);
+  free(MaxRowSum_SumVec);
   edge_index.clear();
   edge_val.clear();
   degree.clear();
@@ -198,6 +271,9 @@ float impl::openblas::openblas_impl(int feature_0, int feature_1, int feature_2,
   initFloat(X1_inter, v_num * F1);
   initFloat(X2, v_num * F2);
   initFloat(X2_inter, v_num * F2);
+
+  initFloat(MaxRowSum_OneVec, F2);
+  initFloat(MaxRowSum_SumVec, v_num);
 
   // Preprocessing time should be included
   auto &preprocessing = recorder.get_preprocessinig();

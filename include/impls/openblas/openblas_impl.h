@@ -34,7 +34,11 @@ void ReLU(int dim, float *X);
 
 void LogSoftmax(int dim, float *X);
 
+void LogSoftmaxOpt(int dim, float *X);
+
 float MaxRowSum(float *X, int dim);
+
+float MaxRowSumOpt(float *X, int dim);
 
 void freeFloats();
 void somePreprocessing();

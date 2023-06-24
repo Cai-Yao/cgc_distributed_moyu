@@ -2,8 +2,15 @@ cmake_minimum_required(VERSION 3.13)
 
 project(china-graph-challenge)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
+
+find_package(OpenMP REQUIRED)
+if(OpenMP_FOUND)
+    message(STATUS "found openmp") 
+else()
+    message(FATAL_ERROR "openmp not found!")
+endif()
 
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 set(LIBRARY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/lib)

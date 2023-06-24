@@ -78,7 +78,7 @@ static void BM_OriginImpl(benchmark::State &state) {
   auto standard_res = impl::origin::origin_impl(
       F0, F1, F2, graph_path.c_str(), embedding_path.c_str(),
       weight1_path.c_str(), weight2_path.c_str(), *recorder);
-  double diff = 0;
+  float diff = 0;
   double run_time = 0;
   recorder->enable_record_time(true);
   for (auto _ : state) {
@@ -86,7 +86,7 @@ static void BM_OriginImpl(benchmark::State &state) {
         F0, F1, F2, graph_path.c_str(), embedding_path.c_str(),
         weight1_path.c_str(), weight2_path.c_str(), *recorder);
 
-    diff = std::max(diff, double(abs(standard_res - case_res)));
+    diff = std::max(diff, abs(standard_res - case_res));
     run_time = 0;
     for (auto &id : recorder->get_ids()) {
       run_time += recorder->get_duration(id);
@@ -108,7 +108,7 @@ static void BM_OpenBlasImpl(benchmark::State &state) {
   auto standard_res = impl::origin::origin_impl(
       F0, F1, F2, graph_path.c_str(), embedding_path.c_str(),
       weight1_path.c_str(), weight2_path.c_str(), *recorder);
-  double diff = 0;
+  float diff = 0;
   double run_time = 0;
   recorder->enable_record_time(true);
   for (auto _ : state) {
@@ -116,7 +116,7 @@ static void BM_OpenBlasImpl(benchmark::State &state) {
         F0, F1, F2, graph_path.c_str(), embedding_path.c_str(),
         weight1_path.c_str(), weight2_path.c_str(), *recorder);
 
-    diff = std::max(diff, double(abs(standard_res - case_res)));
+    diff = std::max(diff, abs(standard_res - case_res));
     run_time = 0;
     for (auto &id : recorder->get_ids()) {
       run_time += recorder->get_duration(id);
@@ -147,6 +147,17 @@ static void OpenBlasBaseSetup(const benchmark::State &state) {
   recorder->set_MaxRowSum(impl::openblas::MaxRowSum);
 }
 
+static void OpenBlasOptSetup(const benchmark::State &state) {
+  recorder = new utils::util_recorder();
+  recorder->set_preprocessing(impl::openblas::somePreprocessing);
+  recorder->set_edge_norm(impl::openblas::edgeNormalization);
+  recorder->set_XW(impl::openblas::XW);
+  recorder->set_AX(impl::openblas::AX);
+  recorder->set_ReLU(impl::openblas::ReLU);
+  recorder->set_LogSoftmax(impl::openblas::LogSoftmaxOpt);
+  recorder->set_MaxRowSum(impl::openblas::MaxRowSumOpt);
+}
+
 BENCHMARK(BM_OriginImpl)
     ->Name("Origin Implemention Small")
     ->Apply(GenSmallTestParams)
@@ -159,6 +170,14 @@ BENCHMARK(BM_OpenBlasImpl)
     ->Name("OpenBlas Implemention Small")
     ->Apply(GenSmallTestParams)
     ->Setup(OpenBlasBaseSetup)
+    ->Teardown(BaseTeardown)
+    ->Unit(benchmark::kMillisecond)
+    ->UseManualTime();
+
+BENCHMARK(BM_OpenBlasImpl)
+    ->Name("OpenBlas Opt Implemention Small")
+    ->Apply(GenSmallTestParams)
+    ->Setup(OpenBlasOptSetup)
     ->Teardown(BaseTeardown)
     ->Unit(benchmark::kMillisecond)
     ->UseManualTime();
@@ -176,6 +195,15 @@ BENCHMARK(BM_OpenBlasImpl)
     ->Name("OpenBlas Implemention Standard")
     ->Apply(GenStandardTestParams)
     ->Setup(OpenBlasBaseSetup)
+    ->Teardown(BaseTeardown)
+    ->Unit(benchmark::kMillisecond)
+    ->UseManualTime()
+    ->Iterations(5);
+
+BENCHMARK(BM_OpenBlasImpl)
+    ->Name("OpenBlas Implemention Standard Opt")
+    ->Apply(GenStandardTestParams)
+    ->Setup(OpenBlasOptSetup)
     ->Teardown(BaseTeardown)
     ->Unit(benchmark::kMillisecond)
     ->UseManualTime()
