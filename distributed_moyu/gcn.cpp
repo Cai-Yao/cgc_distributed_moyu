@@ -136,23 +136,23 @@ void AX(int dim, float *in_X, float *out_X)
 
 void ReLU(int dim, float *X)
 {
-	for (int i = 0; i < v_num * dim; i++)
-		if (X[i] < 0)
-			X[i] = 0;
-    // const int num_elements = v_num * dim;
-    // int i = 0, align_size = num_elements - (num_elements % 16);
-    // __m512 zero_vector = _mm512_setzero_ps(), cache_vector, res_vector;
-    // for (; i < align_size; i += 16) {
-    //     cache_vector = _mm512_loadu_ps(X + i);
-    //     res_vector = _mm512_max_ps(cache_vector, zero_vector);
-    //     _mm512_storeu_ps(X + i, res_vector);
-    // }
-    // if (num_elements % 16) {
-    //     __mmask16 mask = (1 << (num_elements % 16)) - 1;
-    //     cache_vector = _mm512_maskz_loadu_ps(mask, X + i);
-    //     res_vector = _mm512_maskz_max_ps(mask, cache_vector, zero_vector);
-    //     _mm512_mask_storeu_ps(X + i, mask, res_vector);
-    // }
+	// for (int i = 0; i < v_num * dim; i++)
+	// 	if (X[i] < 0)
+	// 		X[i] = 0;
+    const int num_elements = v_num * dim;
+    int i = 0, align_size = num_elements - (num_elements % 16);
+    __m512 zero_vector = _mm512_setzero_ps(), cache_vector, res_vector;
+    for (; i < align_size; i += 16) {
+        cache_vector = _mm512_loadu_ps(X + i);
+        res_vector = _mm512_max_ps(cache_vector, zero_vector);
+        _mm512_storeu_ps(X + i, res_vector);
+    }
+    if (num_elements % 16) {
+        __mmask16 mask = (1 << (num_elements % 16)) - 1;
+        cache_vector = _mm512_maskz_loadu_ps(mask, X + i);
+        res_vector = _mm512_maskz_max_ps(mask, cache_vector, zero_vector);
+        _mm512_mask_storeu_ps(X + i, mask, res_vector);
+    }
 }
 
 void LogSoftmax(int dim, float *X)
