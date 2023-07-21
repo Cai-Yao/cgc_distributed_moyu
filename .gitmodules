@@ -1,9 +1,0 @@
-[submodule "3rdparty/benchmark"]
-	path = 3rdparty/benchmark
-	url = https://github.com/google/benchmark.git
-[submodule "3rdparty/PaRMAT"]
-	path = 3rdparty/PaRMAT
-	url = https://github.com/farkhor/PaRMAT.git
-[submodule "3rdparty/OpenBLAS"]
-	path = 3rdparty/OpenBLAS
-	url = https://github.com/xianyi/OpenBLAS.git

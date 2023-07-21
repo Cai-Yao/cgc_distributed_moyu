@@ -1,3 +1,0 @@
-add_library(origin_impl origin_impl.cpp)
-
-target_link_libraries(graph_benchmark origin_impl)

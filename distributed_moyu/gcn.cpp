@@ -8,6 +8,8 @@
 #include <iostream>
 #include <iomanip>
 #include <chrono>
+#include <cblas.h>
+#include <immintrin.h>
 
 using namespace std;
 
@@ -33,7 +35,7 @@ void readGraph(char *fname)
 
 	infile >> v_num >> e_num;
 
-	raw_graph.resize(e_num * 2);
+	// raw_graph.resize(e_num * 2);
 
 	while (!infile.eof())
 	{
@@ -66,6 +68,7 @@ void raw_graph_to_AdjacencyList()
 
 void edgeNormalization()
 {
+    #pragma omp parallel for
 	for (int i = 0; i < v_num; i++)
 	{
 		for (int j = 0; j < edge_index[i].size(); j++)
@@ -92,20 +95,23 @@ void initFloat(float *&dst, int num)
 
 void XW(int in_dim, int out_dim, float *in_X, float *out_X, float *W)
 {
-	float(*tmp_in_X)[in_dim] = (float(*)[in_dim])in_X;
-	float(*tmp_out_X)[out_dim] = (float(*)[out_dim])out_X;
-	float(*tmp_W)[out_dim] = (float(*)[out_dim])W;
+	cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, v_num, out_dim, in_dim,
+              1.0, in_X, in_dim, W, out_dim, 0.0, out_X, out_dim);
+    // float(*tmp_in_X)[in_dim] = (float(*)[in_dim])in_X;
+	// float(*tmp_out_X)[out_dim] = (float(*)[out_dim])out_X;
+	// float(*tmp_W)[out_dim] = (float(*)[out_dim])W;
 
-	for (int i = 0; i < v_num; i++)
-	{
-		for (int j = 0; j < out_dim; j++)
-		{
-			for (int k = 0; k < in_dim; k++)
-			{
-				tmp_out_X[i][j] += tmp_in_X[i][k] * tmp_W[k][j];
-			}
-		}
-	}
+    // #pragma omp parallel for
+	// for (int i = 0; i < v_num; i++)
+	// {
+	// 	for (int j = 0; j < out_dim; j++)
+	// 	{
+	// 		for (int k = 0; k < in_dim; k++)
+	// 		{
+	// 			tmp_out_X[i][j] += tmp_in_X[i][k] * tmp_W[k][j];
+	// 		}
+	// 	}
+	// }
 }
 
 void AX(int dim, float *in_X, float *out_X)
@@ -113,6 +119,7 @@ void AX(int dim, float *in_X, float *out_X)
 	float(*tmp_in_X)[dim] = (float(*)[dim])in_X;
 	float(*tmp_out_X)[dim] = (float(*)[dim])out_X;
 
+    #pragma omp parallel for
 	for (int i = 0; i < v_num; i++)
 	{
 		vector<int> &nlist = edge_index[i];
@@ -132,12 +139,27 @@ void ReLU(int dim, float *X)
 	for (int i = 0; i < v_num * dim; i++)
 		if (X[i] < 0)
 			X[i] = 0;
+    // const int num_elements = v_num * dim;
+    // int i = 0, align_size = num_elements - (num_elements % 16);
+    // __m512 zero_vector = _mm512_setzero_ps(), cache_vector, res_vector;
+    // for (; i < align_size; i += 16) {
+    //     cache_vector = _mm512_loadu_ps(X + i);
+    //     res_vector = _mm512_max_ps(cache_vector, zero_vector);
+    //     _mm512_storeu_ps(X + i, res_vector);
+    // }
+    // if (num_elements % 16) {
+    //     __mmask16 mask = (1 << (num_elements % 16)) - 1;
+    //     cache_vector = _mm512_maskz_loadu_ps(mask, X + i);
+    //     res_vector = _mm512_maskz_max_ps(mask, cache_vector, zero_vector);
+    //     _mm512_mask_storeu_ps(X + i, mask, res_vector);
+    // }
 }
 
 void LogSoftmax(int dim, float *X)
 {
 	float(*tmp_X)[dim] = (float(*)[dim])X;
 
+    #pragma omp parallel for
 	for (int i = 0; i < v_num; i++)
 	{
 		float max = tmp_X[i][0];
@@ -166,6 +188,7 @@ float MaxRowSum(float *X, int dim)
 	float(*tmp_X)[dim] = (float(*)[dim])X;
 	float max = -__FLT_MAX__;
 
+    #pragma omp parallel for reduction(max: max)
 	for (int i = 0; i < v_num; i++)
 	{
 		float sum = 0;
